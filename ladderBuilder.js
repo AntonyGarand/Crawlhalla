@@ -43,7 +43,7 @@ let upperLimit = null;
 
 
 function findLastPlayer(pageResult) {
-    const currentPageAnswer = JSON.parse(pageResult);
+    const currentPageAnswer = getLadderPage(currentPage);
     console.log("Finding last player!\n Current page is " + currentPage + ', last valid is ' + lastValidPage);
 
     if (currentPageAnswer.error) {
@@ -77,11 +77,12 @@ function findLastPlayer(pageResult) {
         const msUntilNextRequest = (1000 * rateLimit) - (Date.now() - lastRequest);
         setTimeout(() => {
             lastRequest = Date.now();
-            getLadderPage(currentPage, findLastPlayer);
+            findLastPlayer(currentPage);
         }, msUntilNextRequest);
+    } else {
+
     }
 }
 
-getLadderPage(currentPage, findLastPlayer);
+findLastPlayer(currentPage);
 
-//Date.now();

@@ -9,11 +9,11 @@ import {getCache, hasCache, setCache} from "./cache.js";
  * Crawls a given page and returns the json response
  * @param {String} pageUrl The url to crawl
  */
-export const crawlPage = function (pageUrl, callback) {
+export const crawlPage = function (pageUrl) {
     if (hasCache(pageUrl)) {
         return getCache(pageUrl);
     }
-    const requestResult = originalCrawlPage(pageUrl, callback);
+    const requestResult = originalCrawlPage(pageUrl);
     setCache(pageUrl, requestResult);
     return requestResult;
 };

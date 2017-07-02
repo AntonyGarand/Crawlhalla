@@ -6,9 +6,9 @@ import {apiUrl, apiKey} from './config.js';
  * @param {String} region
  * @param {String} gameType
  */
-export const getLadderPage = function (page, callback, region = 'all', gameType = '1v1') {
+export const getLadderPage = function (page, region = 'all', gameType = '1v1') {
     const pageUrl = `${apiUrl}/rankings/${gameType}/${region}/${page}?api_key=${apiKey}`;
-    crawlPage(pageUrl, callback);
+    return crawlPage(pageUrl);
 };
 
 /**
