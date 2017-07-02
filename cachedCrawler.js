@@ -9,7 +9,7 @@ import {getCache, hasCache, setCache} from "./cache.js";
  * Crawls a given page and returns the json response
  * @param {String} pageUrl The url to crawl
  */
-export const crawlPage = function (pageUrl) {
+export const crawlPage = async function (pageUrl) {
     if (hasCache(pageUrl)) {
         return getCache(pageUrl);
     }
