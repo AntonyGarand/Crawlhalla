@@ -4,11 +4,9 @@
  * Finds the number of player in each tier and division
  */
 
-import {rateLimit, apiKey} from './config.js';
-import bhapi from 'brawlhalla-api';
-import util from 'util';
-
-import request from 'request';
+import {apiKey, rateLimit} from "./config.js";
+import bhapi from "brawlhalla-api";
+import util from "util";
 
 Promise.prototype.isPending = function () {
     return util.inspect(this).indexOf("<pending>") > -1;
@@ -32,6 +30,13 @@ tiers.forEach(t => {
     }
 });
 
+// findTierPlayerCount(tierName, tierRange = 5) {
+//     const tier = result[tierName];
+//     for (let i = 0; i < tierRange; i++) {
+//
+//     }
+// }
+
 let lastRequest = Date.now();
 // 1. Find the top player
 // 2. Find the lowest player (To get the player count)
@@ -40,78 +45,107 @@ let lastRequest = Date.now();
 
 let pageLength = 50;
 
-function findTierPlayerCount(tierName, tierRange = 5) {
-    const tier = result[tierName];
-    for (let i = 0; i < tierRange; i++) {
-
+class ladderBuilder {
+    constructor(answerFound = false, answer = null, currentPage = 1, currentPageAnswer = null) {
+        this.answerFound = answerFound;
+        this.answer = answer;
+        this.minPage = 1;
+        this.maxPage = null;
+        this.currentPage = currentPage;
+        this.currentPageAnswer = currentPageAnswer;
+        this.lastRequestTime = 0;
     }
-}
 
-function findLastPlayerCondition(currentPageAnswer, currentPageNumber, minPage, maxPage) {
-    if ((currentPageAnswer.length < 50 && currentPageAnswer.length !== 0) ||
-        (currentPageNumber === minPage && currentPageNumber === maxPage)) {
-        return 0;
+    buildLadder() {
+        this.answerFound = false;
+        this.answer = null;
+        this.currentPage = 1;
+        this.minPage = 1;
+        this.maxPage = null;
+        this.currentPageAnswer = null;
+        const condition = this.findLastPlayerCondition;
+        const answerExtractor = this.extractPlayerCount;
+        const callback = this.savePlayerCount;
+
+        this.performQueryAfterLimit(condition, answerExtractor, callback);
     }
-    if (currentPageAnswer.length === 0) {
-        return 1;
+
+    performQueryAfterLimit(condition, extractor, callback){
+        // Prevent api limit busting
+        setTimeout(() => {
+                this.lastRequestTime = Date.now()
+                api.getRankings({page: this.currentPage}).then(
+                    result => this.scrapeLeaderboardForConditionRecursive(result, condition, extractor, callback, 0, null)
+                );
+            },
+            (this.lastRequestTime + (rateLimit * 1000)) - Date.now()
+        );
     }
-    return -1;
-}
-function extractPlayerCount(currentPageAnswer, currentPageNumber) {
-    return ((currentPageNumber - 1) * pageLength) + currentPageAnswer.length;
-}
 
-function scrapeLeaderboardForCondition(condition, answerExtractor, minPage, maxPage) {
-    let answerFound = false;
-    let answer = false;
-    let currentPage;
-    let currentPageAnswer;
-
-    while (answerFound === false) {
-        // When there is no upper limit
-        if (maxPage === null || isNaN(maxPage)) {
-            currentPage = Math.ceil(minPage + scanStep);
-        } else {
-            currentPage = Math.ceil((minPage + maxPage) / 2);
-        }
-
-        // Prevent busting the api rate limit
-        while (lastRequest + (rateLimit * 1000) > Date.now()) {
-        }
-        lastRequest = Date.now();
-
-        currentPageAnswer = api.getRankings({page: currentPage});
-
-        const result = testPageForCondition(currentPageAnswer, currentPage, minPage, maxPage, condition, answerExtractor);
+    scrapeLeaderboardForConditionRecursive(currentPageAnswer, condition, answerExtractor, answerFoundCallback) {
+        const result = this.testPageForCondition(currentPageAnswer, condition, answerExtractor);
+        this.minPage = parseInt(result.minPage);
+        this.maxPage = parseInt(result.maxPage);
         if (result.isValid === true) {
-            answer = result.answer;
-            answerFound = true;
+            this.answer = result.answer;
+            this.answerFound = true;
+            answerFoundCallback(result.answer);
+        } else {
+            // When there is no upper limit
+            if (this.maxPage === null || isNaN(this.maxPage)) {
+                this.currentPage = Math.ceil(this.minPage + scanStep);
+            } else {
+                this.currentPage = Math.ceil((this.minPage + this.maxPage) / 2);
+            }
+            this.performQueryAfterLimit(condition, answerExtractor, answerFoundCallback);
         }
-        minPage = parseInt(result.minPage);
-        maxPage = parseInt(result.maxPage);
     }
-    return answer;
-}
 
-function testPageForCondition(currentPageAnswer, currentPage, minPage, maxPage, condition, answerExtractor) {
-    console.log('Testing page: ' + currentPage);
-    const conditionResult = condition(currentPageAnswer, currentPage, minPage, maxPage);
+    testPageForCondition(currentPageAnswer, condition, answerExtractor) {
+        console.log('Testing page: ' + this.currentPage);
+        const conditionResult = condition(currentPageAnswer, this.currentPage, this.minPage, this.maxPage);
 
-    const buildAnswer = function (isValid, minPage, maxPage, answer) {
+        if (conditionResult > 0) {
+            // Too high, go lower
+            return this.buildAnswer(false, this.minPage, this.currentPage, null);
+        } else if (conditionResult < 0) {
+            // Too low, go higher
+            return this.buildAnswer(false, this.currentPage, this.maxPage, null);
+        } else {
+            // Found the right page
+            return this.buildAnswer(true, this.currentPage, this.currentPage, answerExtractor(currentPageAnswer, this.currentPage));
+        }
+    }
+    buildAnswer(isValid, minPage, maxPage, answer){
         return {isValid, minPage, maxPage, answer};
     }
-    if (conditionResult > 0) {
-        // Too high, go lower
-        return buildAnswer(false, minPage, currentPage, null);
-    } else if (conditionResult < 0) {
-        // Too low, go higher
-        return buildAnswer(false, currentPage, maxPage, null);
-    } else {
-        // Found the right page
-        return buildAnswer(true, currentPage, currentPage, answerExtractor(currentPageAnswer, currentPage));
+
+    // TODO: Extract function from class
+    findLastPlayerCondition(currentPageAnswer, currentPageNumber, minPage, maxPage) {
+        // Page found
+        if ((currentPageAnswer.length < 50 && currentPageAnswer.length !== 0) ||
+            (currentPageNumber === minPage && currentPageNumber === maxPage)) {
+            return 0;
+        }
+        // Too high
+        if (currentPageAnswer.length === 0) {
+            return 1;
+        }
+        // Too low
+        return -1;
+    }
+
+    // TODO: Extract function from class
+    extractPlayerCount(currentPageAnswer, currentPageNumber) {
+        return ((currentPageNumber - 1) * pageLength) + currentPageAnswer.length;
+    }
+
+    // TODO: Extract function from class
+    savePlayerCount(playerCount) {
+        //TODO: Write on disk the player count
+        console.log('There are ' + playerCount + ' players at the moment');
     }
 }
 
-const playerCount = scrapeLeaderboardForCondition(findLastPlayerCondition, extractPlayerCount, 1, null)
-console.log('There are ' + playerCount + ' ranked players at this moment.');
+new ladderBuilder().buildLadder();
 
