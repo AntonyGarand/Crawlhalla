@@ -12,4 +12,3 @@ const startPage = namedArgs['startPage'] ? namedArgs['startpage'] : 1;
 const endPage = namedArgs['endPage'] ? namedArgs['endPage '] : 100;
 const region = namedArgs['region'] ? namedArgs['region '] : 'all';
 const mode = namedArgs['mode'] ? namedArgs['mode '] : '1v1';
-
