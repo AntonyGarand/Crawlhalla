@@ -40,6 +40,7 @@ export default class ladderNavigator {
      * @param condition The condition to check
      * @param extractor The answer extractor
      * @returns {Promise} The extracted answer found
+     * @private
      */
     _performQueryAfterLimit(condition, extractor) {
         // Prevent api limit busting
@@ -66,6 +67,7 @@ export default class ladderNavigator {
      * @param condition The condition to check
      * @param answerExtractor Method to extract the answer once found
      * @returns {Promise} The extracted answer found
+     * @private
      */
     _scrapeLeaderboardForConditionRecursive(currentPageAnswer, condition, answerExtractor) {
         const result = this._testPageForCondition(currentPageAnswer, condition, answerExtractor);
@@ -97,6 +99,7 @@ export default class ladderNavigator {
      * @param condition The condition to test
      * @param answerExtractor Method to extract the answer if found
      * @returns {{isValid, minPage, maxPage, answer}} An object with the new arguments to use
+     * @private
      */
     _testPageForCondition(currentPageAnswer, condition, answerExtractor) {
         console.log('Testing page: ' + this.currentPage);
@@ -122,6 +125,7 @@ export default class ladderNavigator {
      * @param maxPage The next higher limit to use, or null if we don't know it yet
      * @param answer The answer object, if found
      * @returns {{isValid: *, minPage: *, maxPage: *, answer: *}}
+     * @private
      */
     _buildAnswer(isValid, minPage, maxPage, answer) {
         return {isValid, minPage, maxPage, answer};
