@@ -15,7 +15,6 @@ export default class ladderNavigator {
         this.minPage = minPage;
         this.maxPage = maxPage;
         this.currentPage = minPage;
-        this.currentPageAnswer = null;
         this.lastRequestTime = 0;
         this.api = bhapi(apiKey);
         this.scanStep = scanStep;
@@ -31,19 +30,18 @@ export default class ladderNavigator {
     scrapeLadder(conditionMethod, extractAnswerMethod) {
         this.answerFound = false;
         this.answer = null;
-        this.currentPageAnswer = null;
-        return this.performQueryAfterLimit(conditionMethod, extractAnswerMethod);
+        return this._performQueryAfterLimit(conditionMethod, extractAnswerMethod);
     }
 
     /**
-     * performQueryAfterLimit
+     * _performQueryAfterLimit
      * Will execute the next ladderboard scraping after the specified delay
      * WIP: Or immediately if a cached file is available
      * @param condition The condition to check
      * @param extractor The answer extractor
      * @returns {Promise} The extracted answer found
      */
-    performQueryAfterLimit(condition, extractor) {
+    _performQueryAfterLimit(condition, extractor) {
         // Prevent api limit busting
         // TODO: Check if there is a cached file, and use it if available
         return new Promise((resolve, reject) => {
@@ -51,7 +49,7 @@ export default class ladderNavigator {
                     this.lastRequestTime = Date.now();
                     this.api.getRankings({page: this.currentPage}).then(
                         result =>
-                            this.scrapeLeaderboardForConditionRecursive(result, condition, extractor)
+                            this._scrapeLeaderboardForConditionRecursive(result, condition, extractor)
                                 .then(resolve, reject)
                     )
                 },
@@ -62,15 +60,15 @@ export default class ladderNavigator {
 
 
     /**
-     * scrapeLeaderboardForConditionRecursive
+     * _scrapeLeaderboardForConditionRecursive
      * Will recursively scrape the leaderboard until a given condition is met
      * @param currentPageAnswer The current page to scan
      * @param condition The condition to check
      * @param answerExtractor Method to extract the answer once found
      * @returns {Promise} The extracted answer found
      */
-    scrapeLeaderboardForConditionRecursive(currentPageAnswer, condition, answerExtractor) {
-        const result = this.testPageForCondition(currentPageAnswer, condition, answerExtractor);
+    _scrapeLeaderboardForConditionRecursive(currentPageAnswer, condition, answerExtractor) {
+        const result = this._testPageForCondition(currentPageAnswer, condition, answerExtractor);
         this.minPage = parseInt(result.minPage);
         this.maxPage = parseInt(result.maxPage);
 
@@ -86,13 +84,13 @@ export default class ladderNavigator {
                 } else {
                     this.currentPage = Math.ceil((this.minPage + this.maxPage) / 2);
                 }
-                this.performQueryAfterLimit(condition, answerExtractor).then(resolve, reject);
+                this._performQueryAfterLimit(condition, answerExtractor).then(resolve, reject);
             }
         });
     }
 
     /**
-     * testPageForCondition
+     * _testPageForCondition
      * Will test a page with a given condition
      * And build an answer accordingly
      * @param currentPageAnswer The current page object
@@ -100,24 +98,24 @@ export default class ladderNavigator {
      * @param answerExtractor Method to extract the answer if found
      * @returns {{isValid, minPage, maxPage, answer}} An object with the new arguments to use
      */
-    testPageForCondition(currentPageAnswer, condition, answerExtractor) {
+    _testPageForCondition(currentPageAnswer, condition, answerExtractor) {
         console.log('Testing page: ' + this.currentPage);
         const conditionResult = condition(currentPageAnswer, this.currentPage, this.minPage, this.maxPage);
 
         if (conditionResult > 0) {
             // Too high, go lower
-            return this.buildAnswer(false, this.minPage, this.currentPage, null);
+            return this._buildAnswer(false, this.minPage, this.currentPage, null);
         } else if (conditionResult < 0) {
             // Too low, go higher
-            return this.buildAnswer(false, this.currentPage, this.maxPage, null);
+            return this._buildAnswer(false, this.currentPage, this.maxPage, null);
         } else {
             // Found the right page
-            return this.buildAnswer(true, this.currentPage, this.currentPage, answerExtractor(currentPageAnswer, this.currentPage));
+            return this._buildAnswer(true, this.currentPage, this.currentPage, answerExtractor(currentPageAnswer, this.currentPage));
         }
     }
 
     /**
-     * buildAnswer
+     * _buildAnswer
      * Will build an object with the given arguments
      * @param isValid Is the answer found
      * @param minPage The next lower limit to use
@@ -125,7 +123,7 @@ export default class ladderNavigator {
      * @param answer The answer object, if found
      * @returns {{isValid: *, minPage: *, maxPage: *, answer: *}}
      */
-    buildAnswer(isValid, minPage, maxPage, answer) {
+    _buildAnswer(isValid, minPage, maxPage, answer) {
         return {isValid, minPage, maxPage, answer};
     }
 }

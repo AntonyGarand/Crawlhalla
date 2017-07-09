@@ -5,6 +5,7 @@
  */
 
 import navigator from "./ladderNavigator.js";
+import fs from "fs";
 
 const tiers = ['Tin', 'Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 const result = {};
@@ -59,6 +60,7 @@ function extractPlayerCount(currentPageAnswer, currentPageNumber) {
 function savePlayerCount(playerCount) {
     //TODO: Write on disk the player count
     console.log('There are ' + playerCount + ' players at the moment');
+    fs.writeFile("./playerCount.txt", playerCount);
 }
 
 new navigator().scrapeLadder(findLastPlayerCondition, extractPlayerCount).then(savePlayerCount);
