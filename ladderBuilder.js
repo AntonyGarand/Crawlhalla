@@ -19,11 +19,33 @@ class ladderBuilder {
     }
 
     buildLadder() {
-        return new Promise((resolve, reject) => {
-            const pageStep = 100;
-            for (let i = ladderBuilder.tiers.length - 1; i >= 0; i--) {
+        let currentPromise = new navigator(100).scrapeLadder(
+            ladderBuilder._findStartOfTierAndDivision('Diamond', 0),
+            ladderBuilder._findPlayersInDivisionUntilPage
+        );
+
+        console.log(this.result);
+        for(let tier in this.result){
+            console.log(tier);
+            for(let division of this.result[tier]){
+                console.log(division);
+                console.log('Adding ' + division.tierName + ' ' + division.division)
+                currentPromise = currentPromise.then(playerInPreviousTier => {
+                    division.minPosition = playersInPreviousTier;
+                    const newNavigator = new navigator(100, Math.floor(playerInPreviousTier / 50));
+                    return newNavigator.scrapeLadder(
+                        ladderBuilder._findStartOfTierAndDivision(division.tierName, division.division),
+                        ladderBuilder._findPlayersInDivisionUntilPage
+                    )
+                });
             }
-        });
+        }
+
+        return currentPromise;
+    }
+
+    _buildLadderRecursive(tier, division) {
+
     }
 
     findTotalPlayerCount() {
@@ -57,6 +79,8 @@ class ladderBuilder {
             // t != Diamond as diamond has only one tier
             for (let i = 0; i < (t !== "Diamond" ? 5 : 1); i++) {
                 result[t][i] = {
+                    tierName: t,
+                    division: i + 1,
                     minPosition: null,
                     maxPosition: null
                 }
@@ -68,22 +92,26 @@ class ladderBuilder {
         console.log('Finding page of ' + wantedTier + ' ' + wantedDivision);
 
         const wantedTierIndex = ladderBuilder.tiers.indexOf(wantedTier);
-        if(wantedTierIndex === -1){
+        if (wantedTierIndex === -1) {
             throw new Error('Invalid tier searched!');
         }
 
         return (pageAnswer, currentPage, minPage, maxPage) => {
             const {lowest, highest} = ladderBuilder._findTierAndDivisionOnPage(pageAnswer);
+            // Too high
+            if (!lowest)
+                return 1;
+
             console.log('Current page has ' + lowest.tier + ' ' + lowest.division);
-            if (wantedTier === lowest.tier) {
+            if (wantedTier === highest.tier) {
                 // TODO: Check if we're on the lowest page
 
                 // Good division, check if we're on the lowest page of this division
-                if (wantedDivision === lowest.division) {
+                if (wantedDivision === highest.division) {
                     // No need to check the tier, unless the leaderboards are REALLY empty. TODO?
 
                     // If there is a tier/division split on the page
-                    //   ** Either lowest or highest page from this tier, we may want either **
+                    //  ** Either lowest or highest page from this tier, we may want either **
                     // Or if the min page is full of this tier
                     // We're on the right page
                     if (highest.division !== lowest.division ||
@@ -93,19 +121,16 @@ class ladderBuilder {
                     }
                 }
                 // Find if we're too high, or too low
-                return wantedDivision < lowest.division ? 1 : -1;
+                return wantedDivision > highest.division ? 1 : -1;
             }
 
             // Wrong page: Different tier. Check tier diff
-            if (wantedTier !== lowest.tier) {
-                console.log('Result: ' + ladderBuilder.tiers.indexOf(tiersOnPage.lowest.tier) > wantedTierIndex ? 1 : -1);
-                return tiersOnPage > wantedTierIndex ? 1 : -1;
-            }
+            return ladderBuilder.tiers.indexOf(lowest.tier) < wantedTierIndex ? 1 : -1;
         }
     }
 
-    static _findEndOfTierAndDivision() {
-
+    static _findPlayersInDivisionUntilPage(pageAnswer, pageNumber) {
+        return pageNumber * 50;
     }
 
 
@@ -117,10 +142,10 @@ class ladderBuilder {
      */
     static _findTierAndDivisionOnPage(pagePlayers) {
         if (!pagePlayers || pagePlayers.length === 0) {
-            return null;
+            return {lowest: null, highest: null};
         }
         let highest = pagePlayers[0];
-        let lowest = playePlayers[pagePlayers.length - 1];
+        let lowest = pagePlayers[pagePlayers.length - 1];
         return ladderBuilder._buildLowestAndHighestPlayerTierAndDivisionInformation(highest, lowest);
     }
 
@@ -138,20 +163,20 @@ class ladderBuilder {
         const lowestTier = lowestPlayer.tier.split(' ');
         // For diamond players, which is written 'Diamond' instead of 'Diamond 0'
         if (highestTier.length === 1) {
-            highestTier[1] = 0;
+            highestTier[1] = 1;
         }
         if (lowestTier.length === 1) {
-            lowestTier[1] = 0;
+            lowestTier[1] = 1;
         }
 
         return {
             lowest: {
                 tier: lowestTier[0],
-                division: lowestTier[1]
+                division: parseInt(lowestTier[1])
             },
             highest: {
                 tier: highestTier[0],
-                division: highestTier[1]
+                division: parseInt(highestTier[1])
             }
         }
     }
@@ -189,7 +214,7 @@ class ladderBuilder {
      * @private
      */
     static _extractPlayerCount(currentPageAnswer, currentPageNumber) {
-        return ((currentPageNumber - 1) * pageLength) + currentPageAnswer.length;
+        return ((currentPageNumber - 1) * 50) + currentPageAnswer.length;
     }
 
     /**
@@ -203,6 +228,4 @@ class ladderBuilder {
     }
 
 }
-
-const a = new ladderBuilder();
-a.buildLadder();
+new ladderBuilder().buildLadder().then(result => console.log(result));
