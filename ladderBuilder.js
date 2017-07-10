@@ -24,11 +24,8 @@ class ladderBuilder {
             ladderBuilder._findPlayersInDivisionUntilPage
         );
 
-        console.log(this.result);
         for(let tier in this.result){
-            console.log(tier);
             for(let division of this.result[tier]){
-                console.log(division);
                 console.log('Adding ' + division.tierName + ' ' + division.division)
                 currentPromise = currentPromise.then(playerInPreviousTier => {
                     division.minPosition = playersInPreviousTier;
