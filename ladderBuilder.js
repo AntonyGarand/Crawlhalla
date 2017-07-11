@@ -6,9 +6,9 @@
 
 import navigator from "./ladderNavigator.js";
 import fs from "fs";
+import utils from "./bhutils.js";
 
-
-class ladderBuilder {
+export default class ladderBuilder {
     static tiers = ['Tin', 'Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
 
     constructor() {
@@ -20,29 +20,29 @@ class ladderBuilder {
 
     buildLadder() {
         let currentPromise = new navigator(100).scrapeLadder(
-            ladderBuilder._findStartOfTierAndDivision('Diamond', 0),
+            ladderBuilder._findStartOfTierAndDivision('Diamond', 1),
             ladderBuilder._findPlayersInDivisionUntilPage
         );
 
         for(let tier in this.result){
-            for(let division of this.result[tier]){
-                console.log('Adding ' + division.tierName + ' ' + division.division)
-                currentPromise = currentPromise.then(playerInPreviousTier => {
-                    division.minPosition = playersInPreviousTier;
-                    const newNavigator = new navigator(100, Math.floor(playerInPreviousTier / 50));
+            for(let rank of this.result[tier]){
+                if('Tin' === rank.tierName && 0 === rank.division)
+                    continue;
+                currentPromise = currentPromise.then(playersInPreviousTier => {
+                    rank.minPosition = playersInPreviousTier;
+                    console.log('Previous rank Started on page ' + playersInPreviousTier / 50);
+                    const newNavigator = new navigator(500);
                     return newNavigator.scrapeLadder(
-                        ladderBuilder._findStartOfTierAndDivision(division.tierName, division.division),
+                        ladderBuilder._findStartOfTierAndDivision(rank.tierName, rank.division),
                         ladderBuilder._findPlayersInDivisionUntilPage
                     )
                 });
             }
         }
 
-        return currentPromise;
-    }
-
-    _buildLadderRecursive(tier, division) {
-
+        return currentPromise.then(answer => {
+            return this.answer;
+        });
     }
 
     findTotalPlayerCount() {
@@ -86,23 +86,24 @@ class ladderBuilder {
     }
 
     static _findStartOfTierAndDivision(wantedTier, wantedDivision) {
-        console.log('Finding page of ' + wantedTier + ' ' + wantedDivision);
+        console.log('Searching for ' + wantedTier + ' ' + wantedDivision);
 
         const wantedTierIndex = ladderBuilder.tiers.indexOf(wantedTier);
         if (wantedTierIndex === -1) {
             throw new Error('Invalid tier searched!');
         }
-
         return (pageAnswer, currentPage, minPage, maxPage) => {
+            if(pageAnswer.length === 0)
+                return 1;
+            if(maxPage - minPage === 1)
+                return 0;
+
             const {lowest, highest} = ladderBuilder._findTierAndDivisionOnPage(pageAnswer);
             // Too high
             if (!lowest)
                 return 1;
 
-            console.log('Current page has ' + lowest.tier + ' ' + lowest.division);
             if (wantedTier === highest.tier) {
-                // TODO: Check if we're on the lowest page
-
                 // Good division, check if we're on the lowest page of this division
                 if (wantedDivision === highest.division) {
                     // No need to check the tier, unless the leaderboards are REALLY empty. TODO?
@@ -126,10 +127,12 @@ class ladderBuilder {
         }
     }
 
+    static _populateRankOfDivision(wantedTier, wantedDivision){
+    }
+
     static _findPlayersInDivisionUntilPage(pageAnswer, pageNumber) {
         return pageNumber * 50;
     }
-
 
     /**
      * _findTierAndDivisionInformationOnPage
@@ -151,30 +154,13 @@ class ladderBuilder {
      * Returns an object with the lowest and highest tiers and divisions from two players based on their ELO
      * @param highestPlayer
      * @param lowestPlayer
-     * @returns {{lowest: {tier, division: *}, highest: {tier, division: *}}}
+     * @returns {{lowest: {tier: string, division: Number}, highest: {tier: string, division: Number}}}
      * @private
      */
     static _buildLowestAndHighestPlayerTierAndDivisionInformation(highestPlayer, lowestPlayer) {
-        //TODO: Find tier based on ELO instead, cause diamonds players can be scattered
-        const highestTier = highestPlayer.tier.split(' ');
-        const lowestTier = lowestPlayer.tier.split(' ');
-        // For diamond players, which is written 'Diamond' instead of 'Diamond 0'
-        if (highestTier.length === 1) {
-            highestTier[1] = 1;
-        }
-        if (lowestTier.length === 1) {
-            lowestTier[1] = 1;
-        }
-
         return {
-            lowest: {
-                tier: lowestTier[0],
-                division: parseInt(lowestTier[1])
-            },
-            highest: {
-                tier: highestTier[0],
-                division: parseInt(highestTier[1])
-            }
+            lowest: utils.eloToTier(lowestPlayer.rating),
+            highest: utils.eloToTier(highestPlayer.rating)
         }
     }
 
@@ -225,4 +211,5 @@ class ladderBuilder {
     }
 
 }
-new ladderBuilder().buildLadder().then(result => console.log(result));
+
+new ladderBuilder().buildLadder().then(result => console.log(JSON.stringify(result)));

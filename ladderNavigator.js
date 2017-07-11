@@ -83,6 +83,8 @@ export default class ladderNavigator {
                 // When there is no upper limit
                 if (this.maxPage === null || isNaN(this.maxPage)) {
                     this.currentPage = Math.ceil(this.minPage + this.scanStep);
+                } else if (this.maxPage - 1 === this.minPage){
+                    this.currentPage = this.minPage;
                 } else {
                     this.currentPage = Math.ceil((this.minPage + this.maxPage) / 2);
                 }
