@@ -10,6 +10,7 @@ export default class ladderNavigator {
     constructor(scanStep = 1500,
                 minPage = 1,
                 maxPage = null,) {
+        this.scanStep = scanStep;
         this.answerFound = false;
         this.answer = null;
         this.minPage = minPage;
@@ -17,7 +18,6 @@ export default class ladderNavigator {
         this.currentPage = minPage;
         this.lastRequestTime = 0;
         this.api = bhapi(apiKey);
-        this.scanStep = scanStep;
     }
 
     /**

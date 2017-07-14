@@ -19,19 +19,56 @@ export default class ladderBuilder {
     }
 
     buildLadder() {
-        let currentPromise = new navigator(100).scrapeLadder(
+        let currentPromise = new navigator(8).scrapeLadder(
             ladderBuilder._findStartOfTierAndDivision('Diamond', 1),
             ladderBuilder._findPlayersInDivisionUntilPage
         );
 
-        for(let tier in this.result){
-            for(let rank of this.result[tier]){
-                if('Tin' === rank.tierName && 0 === rank.division)
+        let count = 0;
+
+        let currentPromise;
+        // Assuming we're
+        for (let i = 0; i < this.result.length; i++) {
+            const tier = this.result[i];
+            for (let j = 0; j < tier.length; j++) {
+                const rankObject = tier[j];
+
+                let minPage;
+                const minPage = this.findPreviousRank(j, tier, minPage, i).minPage;
+
+                rankObject.minPosition = minPage;
+
+                const newNavigator = new navigator(100, minPage);
+                if(!currentPromise){
+                    currentPromise = newNavigator.scrapeLadder(
+                        ladderBuilder._findStartOfTierAndDivision(rankObject.tierName, rankObject.division),
+                        ladderBuilder._findPlayersInDivisionUntilPage
+                    ).then(result => {
+                        rankObject.minPosition =  result;
+                    });
+                } else {
+                    currentPromise = currentPromise.then( () => {
+                            newNavigator.scrapeLadder(
+                            ladderBuilder._findStartOfTierAndDivision(rankObject.tierName, rankObject.division),
+                            ladderBuilder._findPlayersInDivisionUntilPage
+                        ).then(result => {
+                            rankObject.minPosition =  result;
+                        });
+                    });
+                }
+            }
+        }
+        /* for (let tier of this.result) {
+            for (let rank of this.result[tier]) {
+                if ('Tin' === rank.tierName && 0 === rank.division)
                     continue;
+                if (count++ > 1) {
+                    break;
+                }
                 currentPromise = currentPromise.then(playersInPreviousTier => {
                     rank.minPosition = playersInPreviousTier;
                     console.log('Previous rank Started on page ' + playersInPreviousTier / 50);
-                    const newNavigator = new navigator(500);
+                    const newNavigator = new navigator(50, 3900);
                     return newNavigator.scrapeLadder(
                         ladderBuilder._findStartOfTierAndDivision(rank.tierName, rank.division),
                         ladderBuilder._findPlayersInDivisionUntilPage
@@ -39,10 +76,27 @@ export default class ladderBuilder {
                 });
             }
         }
+        currentPromise = currentPromise.then(answer => {
+            return new Promise((resolve, reject) => resolve(this.answer));
+        }); */
+        return currentPromise;
+    }
 
-        return currentPromise.then(answer => {
-            return this.answer;
-        });
+    _findPreviousRank(tierIndex,divisionIndex, currentTier) {
+        let minPage;
+        if (tierIndex === currentTier.length - 1) {
+            // Check next tier
+            const previousTier = currentTier[tierIndex + 1];
+            minPage = previousTier.minPosition | 1;
+        } else if (divisionIndex !== 0) {
+            // Check next division
+            const previousDivision = this.result[divisionIndex - 1];
+            // Getting the highest tier of this division
+            minPage = previousDivision[previousDivision.length - 1].minPosition;
+        } else {
+            minPage = 1;
+        }
+        return minPage;
     }
 
     findTotalPlayerCount() {
@@ -70,32 +124,31 @@ export default class ladderBuilder {
      * @private
      */
     _initTiers() {
-        const result = this.result;
-        ladderBuilder.tiers.forEach(t => {
-            result[t] = [];
-            // t != Diamond as diamond has only one tier
-            for (let i = 0; i < (t !== "Diamond" ? 5 : 1); i++) {
-                result[t][i] = {
-                    tierName: t,
+        this.result = [];
+        ladderBuilder.tiers.reverse().forEach((tier, index) => {
+            const newTier = [];
+            // tier != Diamond as diamond has only one tier
+            for (let i = 0; i < (tier !== "Diamond" ? 5 : 1); i++) {
+                newTier[i] = {
+                    tierName: tier,
+                    tierIndex: index,
                     division: i + 1,
                     minPosition: null,
                     maxPosition: null
                 }
             }
+            this.result.push(newTier);
         });
+        console.log(this.result);
     }
 
-    static _findStartOfTierAndDivision(wantedTier, wantedDivision) {
-        console.log('Searching for ' + wantedTier + ' ' + wantedDivision);
+    static _findStartOfTierAndDivision(wantedRank) {
+        console.log('Searching for ' + wantedRank.tier + ' ' + wantedRank.division);
 
-        const wantedTierIndex = ladderBuilder.tiers.indexOf(wantedTier);
-        if (wantedTierIndex === -1) {
-            throw new Error('Invalid tier searched!');
-        }
         return (pageAnswer, currentPage, minPage, maxPage) => {
-            if(pageAnswer.length === 0)
+            if (pageAnswer.length === 0)
                 return 1;
-            if(maxPage - minPage === 1)
+            if (maxPage - minPage === 1)
                 return 0;
 
             const {lowest, highest} = ladderBuilder._findTierAndDivisionOnPage(pageAnswer);
@@ -123,11 +176,11 @@ export default class ladderBuilder {
             }
 
             // Wrong page: Different tier. Check tier diff
-            return ladderBuilder.tiers.indexOf(lowest.tier) < wantedTierIndex ? 1 : -1;
+            return ladderBuilder.tiers.indexOf(lowest.tier) > wantedRank.tierIndex ? 1 : -1;
         }
     }
 
-    static _populateRankOfDivision(wantedTier, wantedDivision){
+    static _populateRankOfDivision(wantedTier, wantedDivision) {
     }
 
     static _findPlayersInDivisionUntilPage(pageAnswer, pageNumber) {
@@ -211,5 +264,8 @@ export default class ladderBuilder {
     }
 
 }
+const a = new ladderBuilder();
 
-new ladderBuilder().buildLadder().then(result => console.log(JSON.stringify(result)));
+a.buildLadder().then(() => {
+    console.log(a.result);
+});
